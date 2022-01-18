@@ -170,6 +170,21 @@ class ParametricFaceModel:
         face_color = torch.cat([r, g, b], dim=-1) * face_texture
         return face_color
 
+    def compute_color_directional_light(self, face_norm, lights):
+        '''
+            face_norm: [bz, nf, 3]
+            lights: [bz, nlight, 6]
+        returns:
+            shading: [bz, nv, 3]
+        '''
+        light_direction = lights[:, :, :3]
+        light_intensities = lights[:, :, 3:]
+        directions_to_lights = F.normalize(light_direction[:, :, None, :].expand(-1, -1, face_norm.shape[1], -1), dim=3)
+        # face_norm = torch.clamp((face_norm[:,None,:,:]*directions_to_lights).sum(dim=3), 0., 1.)
+        # normals_dot_lights = (face_norm[:,None,:,:]*directions_to_lights).sum(dim=3)
+        normals_dot_lights = torch.clamp((face_norm[:, None, :, :] * directions_to_lights).sum(dim=3), 0., 1.)
+        shading = normals_dot_lights[:, :, :, None] * light_intensities[:, :, None, :]
+        return shading.mean(1)
     
     def compute_rotation(self, angles):
         """
